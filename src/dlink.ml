@@ -203,6 +203,42 @@ module Dlist = struct
         length= n;
       }
 
+  let of_list list=
+    let rec of_list len prev list=
+      match list with
+      | []-> len, prev
+      | hd::tl->
+        let new_elt=
+          Elt.{
+            value= hd;
+            left= Some prev;
+            right= None;
+          }
+        in
+        prev.right <- Some new_elt;
+        of_list (len+1) new_elt tl
+    in
+    match list with
+    | []-> {
+        head= None;
+        tail= None;
+        length= 0;
+      }
+    | hd::tl->
+      let head= Elt.{
+        value= hd;
+        left= None;
+        right= None;
+      }
+      in
+      let (length, tail)= of_list 1 head tl in
+      {
+        head= Some head;
+        tail= Some tail;
+        length;
+      }
+
+
   let length t= t.length
 
   let insert_elt_left t elt value=
@@ -326,6 +362,46 @@ module Circle = struct
     !prev.right <- entry;
     entry.left <- !prev;
     circle
+
+  let of_list list=
+    let rec of_list circle len prev list=
+      match list with
+      | []-> len, prev
+      | hd::tl->
+        let rec new_elt=
+          {
+            value= hd;
+            circle;
+            left= prev;
+            right= new_elt;
+          }
+        in
+        prev.right <- new_elt;
+        of_list circle (len+1) new_elt tl
+    in
+    match list with
+    | []-> {
+        entry= None;
+        size= 0;
+      }
+    | hd::tl->
+      let rec circle= {
+        entry= Some entry;
+        size= 0;
+      }
+      and entry= {
+        value= hd;
+        circle;
+        left= entry;
+        right= entry;
+      }
+      in
+      let (size, tail)= of_list circle 1 entry tl in
+      circle.size <- size;
+      entry.left <- tail;
+      tail.right <- entry;
+      circle
+
 
   let insert_left elt value=
     let left= elt.left in

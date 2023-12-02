@@ -91,6 +91,16 @@ module Dlist = struct
       3
       4"]
 
+  let%expect_test "of_list"=
+    [1;2;4;3;]
+      |> Dlist.of_list
+      |> Dlist.iter ~f:(printf "%d\n");
+    [%expect "
+      1
+      2
+      4
+      3"]
+
   let%expect_test "map"=
     let dlist1= Dlist.map ~f:(( * ) 2) dlist0 in
     Dlist.iter ~f:(printf "%d\n") dlist0;
@@ -106,7 +116,6 @@ module Dlist = struct
       4
       6
       8"]
-
 end
 
 module Circle = struct
@@ -129,6 +138,16 @@ module Circle = struct
       2
       1"];
   ;;
+
+  let%expect_test "of_list"=
+    [1;2;4;3;]
+      |> Circle.of_list
+      |> Circle.entry |> Option.iter (Circle.iter_left ~f:(printf "%d\n"));
+    [%expect "
+      1
+      3
+      4
+      2"]
 
   let%expect_test "size"=
     circle0 |> Circle.size |> printf "%d\n";
