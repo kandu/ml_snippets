@@ -155,8 +155,8 @@ module Circle = struct
   let%expect_test "remove"=
     circle2
       |> Circle.entry
-      |> Fun.flip Option.bind Circle.right
-      |> Fun.flip Option.bind Circle.right
+      |> Option.map Circle.right
+      |> Option.map Circle.right
       |> Option.iter Circle.remove;
     circle2 |> Circle.entry |> Option.iter (Circle.iter_right ~f:(printf "%d\n"));
     [%expect "
@@ -193,7 +193,7 @@ module Circle = struct
       8"];
     circle3
       |> Circle.entry
-      |> Option.iter (fun entry-> entry.Circle.right |> Option.iter (fun right-> printf "%b\n" (right == entry)));
+      |> Option.iter (fun entry-> printf "%b\n" (entry.Circle.right == entry));
     [%expect "
       true"];
     circle3 |> Circle.size |> printf "%d\n";

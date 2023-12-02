@@ -285,8 +285,8 @@ module Circle = struct
   and 'a elt= {
     value: 'a;
     circle: 'a t;
-    mutable left: 'a elt option;
-    mutable right: 'a elt option;
+    mutable left: 'a elt;
+    mutable right: 'a elt;
   }
 
   let left elt= elt.left
@@ -316,15 +316,15 @@ module Circle = struct
       size= n;
       entry= Some entry;
     }
-    and entry= { value= f 0; circle; left= None; right= None } in
+    and entry= { value= f 0; circle; left= entry; right= entry } in
     let prev= ref entry in
     for i= 1 to n-1 do
-      let next= { value= f i; circle; left= Some !prev; right= None } in
-      !prev.right <- Some next;
+      let rec next= { value= f i; circle; left= !prev; right= next } in
+      !prev.right <- next;
       prev:= next;
     done;
-    !prev.right <- Some entry;
-    entry.left <- Some !prev;
+    !prev.right <- entry;
+    entry.left <- !prev;
     circle
 
   let insert_left elt value=
@@ -333,13 +333,11 @@ module Circle = struct
       value;
       circle= elt.circle;
       left= elt.left;
-      right= Some elt;
+      right= elt;
     }
     in
-    (match left with
-    | Some left-> left.right <- Some new_elt
-    | None-> ());
-    elt.left <- Some new_elt;
+    left.right <- new_elt;
+    elt.left <- new_elt;
     elt.circle.size <- elt.circle.size + 1
 
   let insert_right elt value=
@@ -347,14 +345,12 @@ module Circle = struct
     let new_elt= {
       value;
       circle= elt.circle;
-      left= Some elt;
+      left= elt;
       right= elt.right;
     }
     in
-    (match right with
-    | Some right-> right.left <- Some new_elt
-    | None-> ());
-    elt.right <- Some new_elt;
+    right.left <- new_elt;
+    elt.right <- new_elt;
     elt.circle.size <- elt.circle.size + 1
 
   let remove elt=
@@ -365,16 +361,12 @@ module Circle = struct
     ) else if circle.size > 1 then (
       let left= elt.left
       and right= elt.right in
-      (match left with
-      | Some left-> left.right <- right
-      | None-> ());
-      (match right with
-      | Some right-> right.left <- left
-      | None-> ());
+      left.right <- right;
+      right.left <- left;
       circle.entry
         |> Option.iter (fun entry->
           if entry == elt then
-            circle.entry <- right);
+            circle.entry <- Some right);
       circle.size <- circle.size - 1;
     )
 
@@ -382,10 +374,7 @@ module Circle = struct
     let entry= elt in
     let rec iter_left ~f elt=
       f elt.value;
-      Option.iter
-        (fun left->
-          if left != entry then iter_left ~f left)
-        elt.left
+      if elt.left != entry then iter_left ~f elt.left
     in
     iter_left ~f elt
 
@@ -393,10 +382,7 @@ module Circle = struct
     let entry= elt in
     let rec iter_right ~f elt=
       f elt.value;
-      Option.iter
-        (fun right->
-          if right != entry then iter_right ~f right)
-        elt.right
+      if elt.right != entry then iter_right ~f elt.right
     in
     iter_right ~f elt
 
@@ -408,17 +394,15 @@ module Circle = struct
         if elt_from == entry_original then
           elt_left
         else
-          let elt_new= {
+          let rec elt_new= {
             value= f elt_from.value;
             circle;
-            left= Some elt_left;
-            right= None;
+            left= elt_left;
+            right= elt_new;
           }
           in
-          elt_left.right <- Some elt_new;
-          match elt_from.right with
-          | Some right-> map ~f circle elt_new right
-          | None-> elt_new
+          elt_left.right <- elt_new;
+          map ~f circle elt_new elt_from.right
       in
         let rec circle= {
           entry= Some entry;
@@ -427,15 +411,12 @@ module Circle = struct
         and entry= {
           value= f elt.value;
           circle;
-          left= None;
-          right= None;
+          left= entry;
+          right= entry;
         } in
-        let last= elt.right
-          |> Option.map (map ~f circle entry)
-          |> Option.value ~default:entry
-        in
-        entry.left <- Some last;
-        last.right <- Some entry;
+        let last= elt.right |> map ~f circle entry in
+        entry.left <- last;
+        last.right <- entry;
         circle
     | None->
       {
@@ -448,13 +429,10 @@ module Circle = struct
     | Some entry->
       let rec fold_left ~f ~acc elt=
         let acc= f acc elt.value in
-        match elt.left with
-        | Some left->
-          if left == entry then
-            acc
-          else
-            fold_left ~f ~acc left
-        | None-> acc
+        if elt.left == entry then
+          acc
+        else
+          fold_left ~f ~acc elt.left
       in
       fold_left ~f ~acc:init entry
     | None-> init
@@ -464,13 +442,10 @@ module Circle = struct
     | Some entry->
       let rec fold_right ~f ~acc elt=
         let acc= f acc elt.value in
-        match elt.right with
-        | Some right->
-          if right == entry then
-            acc
-          else
-            fold_right ~f ~acc right
-        | None->  acc
+        if elt.right == entry then
+          acc
+        else
+          fold_right ~f ~acc elt.right
       in
       fold_right ~f ~acc:init entry
     | None-> init
