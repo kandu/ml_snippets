@@ -81,6 +81,7 @@ module Dlist = struct
   open Ml_snippets.Dlink
 
   let dlist0= Dlist.init ~f:Fun.id 5
+  let dlist1= Dlist.init ~f:((+) 10) 1
 
   let%expect_test "init & iter"=
     Dlist.iter ~f:(printf "%d\n") dlist0;
@@ -92,14 +93,33 @@ module Dlist = struct
       4"]
 
   let%expect_test "of_list"=
-    [1;2;4;3;]
+    let dlist= [1;2;4;3;]
       |> Dlist.of_list
-      |> Dlist.iter ~f:(printf "%d\n");
+    in
+    dlist |> Dlist.length |> printf "%d\n";
+    dlist |> Dlist.iter ~f:(printf "%d\n");
     [%expect "
+      4
       1
       2
       4
       3"]
+
+  let%expect_test "to_list"=
+    dlist0
+      |> Dlist.to_list
+      |> List.iter (printf "%d\n");
+    [%expect "
+      0
+      1
+      2
+      3
+      4"];
+    dlist1
+      |> Dlist.to_list
+      |> List.iter (printf "%d\n");
+    [%expect "10"]
+
 
   let%expect_test "map"=
     let dlist1= Dlist.map ~f:(( * ) 2) dlist0 in
@@ -140,14 +160,31 @@ module Circle = struct
   ;;
 
   let%expect_test "of_list"=
-    [1;2;4;3;]
-      |> Circle.of_list
-      |> Circle.entry |> Option.iter (Circle.iter_left ~f:(printf "%d\n"));
+    let circle= [1;2;4;3;] |> Circle.of_list in
+    circle |> Circle.size |> printf "%d\n";
+    circle |> Circle.entry
+      |> Option.iter (Circle.iter_left ~f:(printf "%d\n"));
     [%expect "
+      4
       1
       3
       4
       2"]
+
+  let%expect_test "to_list"=
+    circle2
+      |> Circle.to_list
+      |> List.iter (printf "%d\n");
+    [%expect "
+      0
+      1
+      2
+      3
+      4"];
+    circle1
+      |> Circle.to_list
+      |> List.iter (printf "%d\n");
+    [%expect "10"]
 
   let%expect_test "size"=
     circle0 |> Circle.size |> printf "%d\n";

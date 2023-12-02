@@ -238,6 +238,15 @@ module Dlist = struct
         length;
       }
 
+  let to_list dlist=
+    let[@tail_mod_cons] rec to_list elt=
+      match elt.Elt.right with
+      | None-> [elt.value]
+      | Some next-> elt.value :: to_list next
+    in
+    match dlist.head with
+    | None-> []
+    | Some head-> to_list head
 
   let length t= t.length
 
@@ -402,6 +411,17 @@ module Circle = struct
       tail.right <- entry;
       circle
 
+  let to_list circle=
+    match circle.entry with
+    | None-> []
+    | Some entry->
+      let[@tail_mod_cons] rec to_list elt=
+        if elt.right == entry then
+          [elt.value]
+        else
+          elt.value :: to_list elt.right
+      in
+      to_list entry
 
   let insert_left elt value=
     let left= elt.left in
