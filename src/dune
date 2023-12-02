@@ -1,0 +1,7 @@
+(include_subdirs unqualified)
+
+(library
+  (name ml_snippets)
+  (public_name ml_snippets)
+  (flags (:standard -safe-string)))
+
