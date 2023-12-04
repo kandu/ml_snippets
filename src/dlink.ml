@@ -262,6 +262,60 @@ module Dlist = struct
       (fun tail-> if tail == elt then t.tail <- tail.right)
       t.head
 
+  let insert_first t value=
+    if length t = 0 then
+      let elt= Elt.{
+        value;
+        left= None;
+        right= None;
+      }
+      in
+      {
+        head= Some elt;
+        tail= Some elt;
+        length= 1;
+      }
+    else
+      let elt= Elt.{
+        value;
+        left= None;
+        right= t.head;
+      }
+      in
+      Option.iter (fun head-> head.Elt.left <- Some elt) t.head;
+      {
+        t with
+        head= Some elt;
+        length= t.length+1;
+      }
+
+  let insert_last t value=
+    if length t = 0 then
+      let elt= Elt.{
+        value;
+        left= None;
+        right= None;
+      }
+      in
+      {
+        head= Some elt;
+        tail= Some elt;
+        length= 1;
+      }
+    else
+      let elt= Elt.{
+        value;
+        left= t.tail;
+        right= None;
+      }
+      in
+      Option.iter (fun tail-> tail.Elt.right <- Some elt) t.tail;
+      {
+        t with
+        tail= Some elt;
+        length= t.length+1;
+      }
+
   let remove t elt=
     if t.length > 0 then begin
       Option.iter
