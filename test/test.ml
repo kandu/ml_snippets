@@ -291,3 +291,67 @@ module Circle = struct
 
 end
 
+module OrderedQueue = struct
+  open Ml_snippets
+
+  module Queue= OrderedQueue.Make(Int)
+
+  let queue= Queue.empty
+
+  let%expect_test "pop min"=
+    let opt_int= function
+      | Some i-> sprintf "Some %d" i
+      | None -> "None"
+    in
+    let q= queue
+      |> Queue.add 3
+      |> Queue.add 1
+      |> Queue.add 5
+      |> Queue.add 3
+    in
+    let m, q= Queue.pop_min q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_min q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_min q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_min q in
+    printf "%s\n" @@ opt_int m;
+    let m, _q= Queue.pop_min q in
+    printf "%s\n" @@ opt_int m;
+    [%expect "
+      Some 1
+      Some 3
+      Some 3
+      Some 5
+      None"]
+
+  let%expect_test "pop max"=
+    let opt_int= function
+      | Some i-> sprintf "Some %d" i
+      | None -> "None"
+    in
+    let q= queue
+      |> Queue.add 3
+      |> Queue.add 1
+      |> Queue.add 5
+      |> Queue.add 3
+    in
+    let m, q= Queue.pop_max q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_max q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_max q in
+    printf "%s\n" @@ opt_int m;
+    let m, q= Queue.pop_max q in
+    printf "%s\n" @@ opt_int m;
+    let m, _q= Queue.pop_max q in
+    printf "%s\n" @@ opt_int m;
+    [%expect "
+      Some 5
+      Some 3
+      Some 3
+      Some 1
+      None"]
+
+end
