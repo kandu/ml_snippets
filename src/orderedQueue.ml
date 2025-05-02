@@ -33,27 +33,37 @@ struct
       s |> remove e1 |> add e2
   end
 
-  let empty= Set0.empty
-  let is_empty= Set0.is_empty
+  type t= {
+    set: Set0.t;
+    length: int;
+  }
+
+  let length t= t.length
+
+  let empty= { set= Set0.empty; length= 0 }
+  let is_empty set= set.length = 0
 
   let add e s=
-    match Set0.find_opt [e] s with
-    | None-> Set0.add [e] s
-    | Some b-> Set0.update b (Bundle.add b e) s
+    match Set0.find_opt [e] s.set with
+    | None-> { set= Set0.add [e] s.set; length= s.length+1 }
+    | Some b-> {
+        set= Set0.update b (Bundle.add b e) s.set;
+        length= s.length+1
+      }
 
   let pop_min s=
-    match Set0.min_elt_opt s with
+    match Set0.min_elt_opt s.set with
     | Some (hd::[])->
-      Some hd, Set0.remove [hd] s
-    | Some (hd::tl)-> Some hd, Set0.update (hd::tl) tl s
+      Some hd, { set= Set0.remove [hd] s.set; length= s.length-1 }
+    | Some (hd::tl)-> Some hd, { set= Set0.update (hd::tl) tl s.set; length= s.length-1 }
     | Some []-> assert false
     | None-> None, s
 
   let pop_max s=
-    match Set0.max_elt_opt s with
+    match Set0.max_elt_opt s.set with
     | Some (hd::[])->
-      Some hd, Set0.remove [hd] s
-    | Some (hd::tl)-> Some hd, Set0.update (hd::tl) tl s
+      Some hd, { set= Set0.remove [hd] s.set; length= s.length-1 }
+    | Some (hd::tl)-> Some hd, { set= Set0.update (hd::tl) tl s.set; length= s.length-1 }
     | Some []-> assert false
     | None-> None, s
 

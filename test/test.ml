@@ -337,21 +337,23 @@ module OrderedQueue = struct
       |> Queue.add 5
       |> Queue.add 3
     in
+    printf "%d\n" (Queue.length q);
     let m, q= Queue.pop_max q in
-    printf "%s\n" @@ opt_int m;
+    printf "%d %s\n" (Queue.length q) (opt_int m);
     let m, q= Queue.pop_max q in
-    printf "%s\n" @@ opt_int m;
+    printf "%d %s\n" (Queue.length q) (opt_int m);
     let m, q= Queue.pop_max q in
-    printf "%s\n" @@ opt_int m;
+    printf "%d %s\n" (Queue.length q) (opt_int m);
     let m, q= Queue.pop_max q in
-    printf "%s\n" @@ opt_int m;
-    let m, _q= Queue.pop_max q in
-    printf "%s\n" @@ opt_int m;
+    printf "%d %s\n" (Queue.length q) (opt_int m);
+    let m, q= Queue.pop_max q in
+    printf "%d %s\n" (Queue.length q) (opt_int m);
     [%expect "
-      Some 5
-      Some 3
-      Some 3
-      Some 1
-      None"]
+      4
+      3 Some 5
+      2 Some 3
+      1 Some 3
+      0 Some 1
+      0 None"]
 
 end
