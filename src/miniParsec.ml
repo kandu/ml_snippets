@@ -36,23 +36,72 @@ let string_of_pos pos= sprintf "line %d, characters %d"
 let string_of_pos_full pos= sprintf "offset %d, line %d, characters %d"
   pos.cnum pos.line (pos.cnum - pos.bol)
 
+type nl=
+  | N
+  | R
+  | RN
+  | All
+
+let line_break_count ?(nl=All) str=
+  let len= String.length str in
+  let rec find count pos=
+    match len - pos with
+    | n when n <=0 -> count
+    | 1-> step count pos
+    | _->
+      match nl with
+      | RN | All ->
+        if (str.[pos], str.[pos+1]) = ('\r','\n') then
+          find (count+1) (pos+2)
+        else
+          step count pos
+      | _-> step count pos
+  and step count pos=
+    let next= pos+1 in
+    match str.[pos] with
+    | '\r'->
+      (match nl with
+      | R | All -> find (count+1) next
+      | N | RN -> find count next)
+    | '\n'->
+      (match nl with
+      | N | All -> find (count+1) next
+      | R | RN -> find count next)
+    | _-> find count next
+  in
+  find 0 0
+
 (* parser generator *)
 
-let any= fun state->
+let any ?(nl=All)= fun state->
   let pos= state.pos in
   if pos.cnum < state.maxlen then
     let found= String.get state.data state.pos.cnum in
-    let pos= { pos with cnum= pos.cnum + 1 } in
+    let line_count= line_break_count ~nl (String.make 1 found) in
+    let cnum= pos.cnum+1 in
+    let bol= if line_count > 0 then cnum else pos.bol in
+    let pos= {
+      cnum;
+      line= pos.line + line_count;
+      bol;
+    } in
     (Ok (found, { state with pos }))
   else
     (Error (state.pos, "out of bounds"))
 
-let char c= fun state->
+let char ?(nl=All) c= fun state->
   let pos= state.pos in
   if pos.cnum < state.maxlen then
     let found= String.get state.data pos.cnum in
     if found = c then
-      let pos= { pos with cnum= pos.cnum + 1 } in
+      let line_count= line_break_count ~nl (String.make 1 found) in
+      let cnum= pos.cnum + 1 in
+      let bol= if line_count > 0 then cnum else pos.bol in
+      let pos= {
+        cnum;
+        line= pos.line + line_count;
+        bol;
+      } in
       (Ok (found, { state with pos }))
     else
       Error (
@@ -61,13 +110,46 @@ let char c= fun state->
   else
     (Error (state.pos, "out of bounds"))
 
-let string str= fun state->
+let rec find_last_bol ?(nl=All) str=
+  match nl with
+  | N->
+    (try Some (String.rindex str '\n' + 1) with _-> None)
+  | R->
+    (try Some(String.rindex str '\r' + 1) with _-> None)
+  | RN->
+    (try
+      let pos= String.rindex str '\n' in
+      if str.[pos-1] = '\r' then
+        Some (pos+1)
+       else
+         None
+    with _-> None)
+  | All->
+    let pn= find_last_bol ~nl:N str
+    and pr= find_last_bol ~nl:R str in
+    match pn, pr with
+    | (Some pn, Some pr)-> Some (max pn pr)
+    | Some pn, None-> Some pn
+    | None, Some pr-> Some pr
+    | None, None-> None
+
+let string ?(nl=All) str= fun state->
   let pos= state.pos in
   let len= String.length str in
   if state.maxlen - pos.cnum >= len then
     let found= String.sub state.data pos.cnum len in
     if found = str then
-      let pos= { pos with cnum= pos.cnum + len } in
+      let line_count= line_break_count ~nl found in
+      let bol=
+        match find_last_bol str with
+        | Some bol-> pos.cnum + bol
+        | None-> pos.bol
+      in
+      let pos= {
+        bol;
+        cnum= pos.cnum + len;
+        line= pos.line + line_count;
+      } in
       (Ok (found, { state with pos }))
     else
       Error (
@@ -77,12 +159,19 @@ let string str= fun state->
     (Error (state.pos, "out of bounds"))
 
 
-let satisfy test= fun state->
+let satisfy ?(nl=All) test= fun state->
   let pos= state.pos in
   if pos.cnum < state.maxlen then
     let found= String.get state.data pos.cnum in
     if test found then
-      let pos= { pos with cnum= pos.cnum + 1 } in
+      let line_count= line_break_count ~nl (String.make 1 found) in
+      let cnum= pos.cnum+1 in
+      let bol= if line_count > 0 then cnum else pos.bol in
+      let pos= {
+        cnum= pos.cnum + 1;
+        line= pos.line + line_count;
+        bol;
+      } in
       (Ok (found, { state with pos }))
     else
       Error (
@@ -229,24 +318,7 @@ let newline_crlf state=
   else
     (Error (state.pos, "out of bounds"))
 
-let newline_lfcr state=
-  let pos= state.pos in
-  if pos.cnum + 2 <= state.maxlen then
-    let found= String.sub state.data pos.cnum 2 in
-    if found = "\n\r" then
-      let cnum= pos.cnum + 1
-      and line= pos.line + 1 in
-      let bol= cnum in
-      let pos= { cnum; line; bol } in
-      (Ok (found, { state with pos }))
-    else
-      Error (
-        state.pos,
-        sprintf "newline-lfcr expected but \"%s\" found" found)
-  else
-    (Error (state.pos, "out of bounds"))
-
-let newline= newline_crlf <|> newline_lfcr
+let newline= newline_crlf
   <|> newline_lf <|> newline_cr
 
 
