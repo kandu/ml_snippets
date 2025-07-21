@@ -76,3 +76,26 @@ let to_lines ?(nl=All) str=
     | _-> build acc prev next in
   build [] 0 0 |> List.rev
 
+let rec find_last_bol ?(nl=All) str=
+  match nl with
+  | N->
+    (try Some (String.rindex str '\n' + 1) with _-> None)
+  | R->
+    (try Some(String.rindex str '\r' + 1) with _-> None)
+  | RN->
+    (try
+      let pos= String.rindex str '\n' in
+      if str.[pos-1] = '\r' then
+        Some (pos+1)
+       else
+         None
+    with _-> None)
+  | All->
+    let pn= find_last_bol ~nl:N str
+    and pr= find_last_bol ~nl:R str in
+    match pn, pr with
+    | (Some pn, Some pr)-> Some (max pn pr)
+    | Some pn, None-> Some pn
+    | None, Some pr-> Some pr
+    | None, None-> None
+
