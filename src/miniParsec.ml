@@ -32,10 +32,10 @@ type 'a t= 'a parser
 
 
 let string_of_pos pos= sprintf "line %d, characters %d"
-  pos.line (pos.cnum - pos.bol)
+  pos.line (pos.cnum - pos.bol + 1)
 
 let string_of_pos_full pos= sprintf "offset %d, line %d, characters %d"
-  pos.cnum pos.line (pos.cnum - pos.bol)
+  pos.cnum pos.line (pos.cnum - pos.bol + 1)
 
 
 (* newline break selector *)

@@ -5,6 +5,7 @@ open Printf
 module Make(NL: NL) = struct
   let ( let* )= bind
 
+  include NL
   include Make(NL)
 
   let int8= any |>> int_of_char
