@@ -1,4 +1,5 @@
 open Printf
+open Utils
 
 type pos= {
   cnum: int;
@@ -35,41 +36,6 @@ let string_of_pos pos= sprintf "line %d, characters %d"
 
 let string_of_pos_full pos= sprintf "offset %d, line %d, characters %d"
   pos.cnum pos.line (pos.cnum - pos.bol)
-
-type nl=
-  | N
-  | R
-  | RN
-  | All
-
-let line_break_count ?(nl=All) str=
-  let len= String.length str in
-  let rec find count pos=
-    match len - pos with
-    | n when n <=0 -> count
-    | 1-> step count pos
-    | _->
-      match nl with
-      | RN | All ->
-        if (str.[pos], str.[pos+1]) = ('\r','\n') then
-          find (count+1) (pos+2)
-        else
-          step count pos
-      | _-> step count pos
-  and step count pos=
-    let next= pos+1 in
-    match str.[pos] with
-    | '\r'->
-      (match nl with
-      | R | All -> find (count+1) next
-      | N | RN -> find count next)
-    | '\n'->
-      (match nl with
-      | N | All -> find (count+1) next
-      | R | RN -> find count next)
-    | _-> find count next
-  in
-  find 0 0
 
 (* parser generator *)
 
@@ -109,29 +75,6 @@ let char ?(nl=All) c= fun state->
         sprintf "\"%c\" expected but \"%c\" found" c found)
   else
     (Error (state.pos, "out of bounds"))
-
-let rec find_last_bol ?(nl=All) str=
-  match nl with
-  | N->
-    (try Some (String.rindex str '\n' + 1) with _-> None)
-  | R->
-    (try Some(String.rindex str '\r' + 1) with _-> None)
-  | RN->
-    (try
-      let pos= String.rindex str '\n' in
-      if str.[pos-1] = '\r' then
-        Some (pos+1)
-       else
-         None
-    with _-> None)
-  | All->
-    let pn= find_last_bol ~nl:N str
-    and pr= find_last_bol ~nl:R str in
-    match pn, pr with
-    | (Some pn, Some pr)-> Some (max pn pr)
-    | Some pn, None-> Some pn
-    | None, Some pr-> Some pr
-    | None, None-> None
 
 let string ?(nl=All) str= fun state->
   let pos= state.pos in
