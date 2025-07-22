@@ -37,31 +37,22 @@ let string_of_pos pos= sprintf "line %d, characters %d"
 let string_of_pos_full pos= sprintf "offset %d, line %d, characters %d"
   pos.cnum pos.line (pos.cnum - pos.bol)
 
+
+(* newline break selector *)
+module type NL = sig
+  val nl: nl
+end
+
 (* parser generator *)
+module Make(NL : NL) = struct
+  open NL
 
-let any ?(nl=All)= fun state->
-  let pos= state.pos in
-  if pos.cnum < state.maxlen then
-    let found= String.get state.data state.pos.cnum in
-    let line_count= line_break_count ~nl (String.make 1 found) in
-    let cnum= pos.cnum+1 in
-    let bol= if line_count > 0 then cnum else pos.bol in
-    let pos= {
-      cnum;
-      line= pos.line + line_count;
-      bol;
-    } in
-    (Ok (found, { state with pos }))
-  else
-    (Error (state.pos, "out of bounds"))
-
-let char ?(nl=All) c= fun state->
-  let pos= state.pos in
-  if pos.cnum < state.maxlen then
-    let found= String.get state.data pos.cnum in
-    if found = c then
+  let any = fun state->
+    let pos= state.pos in
+    if pos.cnum < state.maxlen then
+      let found= String.get state.data state.pos.cnum in
       let line_count= line_break_count ~nl (String.make 1 found) in
-      let cnum= pos.cnum + 1 in
+      let cnum= pos.cnum+1 in
       let bol= if line_count > 0 then cnum else pos.bol in
       let pos= {
         cnum;
@@ -70,58 +61,77 @@ let char ?(nl=All) c= fun state->
       } in
       (Ok (found, { state with pos }))
     else
-      Error (
-        state.pos,
-        sprintf "\"%c\" expected but \"%c\" found" c found)
-  else
-    (Error (state.pos, "out of bounds"))
+      (Error (state.pos, "out of bounds"))
 
-let string ?(nl=All) str= fun state->
-  let pos= state.pos in
-  let len= String.length str in
-  if state.maxlen - pos.cnum >= len then
-    let found= String.sub state.data pos.cnum len in
-    if found = str then
-      let line_count= line_break_count ~nl found in
-      let bol=
-        match find_last_bol str with
-        | Some bol-> pos.cnum + bol
-        | None-> pos.bol
-      in
-      let pos= {
-        bol;
-        cnum= pos.cnum + len;
-        line= pos.line + line_count;
-      } in
-      (Ok (found, { state with pos }))
+  let char c= fun state->
+    let pos= state.pos in
+    if pos.cnum < state.maxlen then
+      let found= String.get state.data pos.cnum in
+      if found = c then
+        let line_count= line_break_count ~nl (String.make 1 found) in
+        let cnum= pos.cnum + 1 in
+        let bol= if line_count > 0 then cnum else pos.bol in
+        let pos= {
+          cnum;
+          line= pos.line + line_count;
+          bol;
+        } in
+        (Ok (found, { state with pos }))
+      else
+        Error (
+          state.pos,
+          sprintf "\"%c\" expected but \"%c\" found" c found)
     else
-      Error (
-        state.pos,
-        sprintf "\"%s\" expected but \"%s\" found" str found)
-  else
-    (Error (state.pos, "out of bounds"))
+      (Error (state.pos, "out of bounds"))
 
-
-let satisfy ?(nl=All) test= fun state->
-  let pos= state.pos in
-  if pos.cnum < state.maxlen then
-    let found= String.get state.data pos.cnum in
-    if test found then
-      let line_count= line_break_count ~nl (String.make 1 found) in
-      let cnum= pos.cnum+1 in
-      let bol= if line_count > 0 then cnum else pos.bol in
-      let pos= {
-        cnum= pos.cnum + 1;
-        line= pos.line + line_count;
-        bol;
-      } in
-      (Ok (found, { state with pos }))
+  let string str= fun state->
+    let pos= state.pos in
+    let len= String.length str in
+    if state.maxlen - pos.cnum >= len then
+      let found= String.sub state.data pos.cnum len in
+      if found = str then
+        let line_count= line_break_count ~nl found in
+        let bol=
+          match find_last_bol str with
+          | Some bol-> pos.cnum + bol
+          | None-> pos.bol
+        in
+        let pos= {
+          bol;
+          cnum= pos.cnum + len;
+          line= pos.line + line_count;
+        } in
+        (Ok (found, { state with pos }))
+      else
+        Error (
+          state.pos,
+          sprintf "\"%s\" expected but \"%s\" found" str found)
     else
-      Error (
-        state.pos,
-        sprintf "\"%c\" isn't satisfied" found)
-  else
-    (Error (state.pos, "out of bounds"))
+      (Error (state.pos, "out of bounds"))
+
+
+  let satisfy test= fun state->
+    let pos= state.pos in
+    if pos.cnum < state.maxlen then
+      let found= String.get state.data pos.cnum in
+      if test found then
+        let line_count= line_break_count ~nl (String.make 1 found) in
+        let cnum= pos.cnum+1 in
+        let bol= if line_count > 0 then cnum else pos.bol in
+        let pos= {
+          cnum= pos.cnum + 1;
+          line= pos.line + line_count;
+          bol;
+        } in
+        (Ok (found, { state with pos }))
+      else
+        Error (
+          state.pos,
+          sprintf "\"%c\" isn't satisfied" found)
+    else
+      (Error (state.pos, "out of bounds"))
+
+end
 
 (* combinator *)
 let fail msg= fun state-> Error (state.pos, msg)
@@ -263,44 +273,6 @@ let newline_crlf state=
 
 let newline= newline_crlf
   <|> newline_lf <|> newline_cr
-
-
-let int8= any |>> int_of_char
-
-let int16= any >>= fun l-> any
-  |>> fun h-> int_of_char h lsl 8 + int_of_char l
-let int16_net= any >>= fun h-> any
-  |>> fun l-> int_of_char h lsl 8 + int_of_char l
-
-let int32= int16 >>= fun l-> int16
-  |>> fun h-> Int32.(add (shift_left (of_int h) 16) (of_int l))
-let int32_net= int16_net >>= fun h-> int16_net
-  |>> fun l-> Int32.(add (shift_left (of_int h) 16) (of_int l))
-
-let int64= int32 >>= fun l-> int32
-  |>> fun h-> Int64.(add (shift_left (of_int32 h) 32) (of_int32 l))
-let int64_net= int32_net >>= fun h-> int32_net
-  |>> fun l-> Int64.(add (shift_left (of_int32 h) 32) (of_int32 l))
-
-let num_dec= satisfy (fun c->
-  '0' <= c && c <= '9')
-
-let num_bin= satisfy (fun c->
-  c = '0' || c = '1')
-
-let num_oct= satisfy (fun c->
-  '0' <= c && c <= '7')
-
-let num_hex= satisfy (fun c->
-  '0' <= c && c <= '9'
-  || 'a' <= c && c <= 'f'
-  || 'A' <= c && c <= 'F')
-
-let lowercase= satisfy (fun c->
-  'a' <= c && c <= 'z')
-
-let uppercase= satisfy (fun c->
-  'A' <= c && c <= 'Z')
 
 (* start parsing *)
 let parse_string parser str= parser (initState str)
