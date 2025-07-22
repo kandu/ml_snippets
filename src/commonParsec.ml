@@ -1,5 +1,6 @@
 open MiniParsec
 open Utils
+open Printf
 
 module Make(NL: NL) = struct
   let ( let* )= bind
@@ -61,4 +62,23 @@ module Make(NL: NL) = struct
     let num= integer +. fractional in
     let result= if neg then -. num else num in
     return result
+
+  let quoted_content quote=
+    many
+      ((char '\\' >> any |>> (sprintf "\\%c"))
+      <|>
+      (satisfy ((<>) quote) |>> String.make 1))
+    |>> String.concat ""
+
+  let quoted quote=
+    char quote >> quoted_content quote << char quote
+
+  let single_quoted_content= quoted_content '\''
+
+  let double_quoted_content= quoted_content '"'
+
+  let single_quoted= quoted '\''
+
+  let double_quoted= quoted '"'
+
 end
